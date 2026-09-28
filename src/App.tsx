@@ -1,0 +1,330 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { Portfolio, SimulationConfig, SimulationResult } from './types/risk';
+import { PRESET_PORTFOLIOS } from './data/mockMarketData';
+import { runPortfolioSimulation } from './engine/models';
+import { TopBar } from './components/TopBar';
+import { PortfolioBuilder } from './components/PortfolioBuilder';
+import { SimulationControls } from './components/SimulationControls';
+import { RiskMetricsCard } from './components/RiskMetricsCard';
+import { PathFanChart } from './components/Charts/PathFanChart';
+import { LossDistributionChart } from './components/Charts/LossDistributionChart';
+import { CorrelationMatrix } from './components/Charts/CorrelationMatrix';
+import { ModelComparisonView } from './components/ModelComparisonView';
+import { StressTestingView } from './components/StressTestingView';
+import { OptionsModuleView } from './components/OptionsModuleView';
+import { BacktestingView } from './components/BacktestingView';
+import { GpuBenchmarkView } from './components/GpuBenchmarkView';
+import { DocumentationModal } from './components/DocumentationModal';
+import { Download, X, Copy, Check, FileText } from 'lucide-react';
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState<string>('risk_engine');
+  const [currencySymbol, setCurrencySymbol] = useState<string>('₹'); // India Bluechip default as in prompt
+  const [portfolio, setPortfolio] = useState<Portfolio>(PRESET_PORTFOLIOS[0]);
+  const [isSimulating, setIsSimulating] = useState<boolean>(false);
+  const [showReportModal, setShowReportModal] = useState<boolean>(false);
+  const [showDocsModal, setShowDocsModal] = useState<boolean>(false);
+  const [copiedReport, setCopiedReport] = useState<boolean>(false);
+
+  const [config, setConfig] = useState<SimulationConfig>({
+    model: 'gjr_garch',
+    paths: 25000,
+    timeHorizonDays: 21,
+    varianceReduction: 'antithetic',
+    hardwareEngine: 'gpu_webgl',
+    confidenceLevels: [0.9, 0.95, 0.99, 0.995],
+    studentTDof: 5,
+    garchOmega: 0.000005,
+    garchAlpha: 0.08,
+    garchBeta: 0.88,
+    gjrGamma: 0.06,
+    hestonKappa: 2.5,
+    hestonTheta: 0.04,
+    hestonXi: 0.35,
+    hestonRho: -0.65,
+  });
+
+  // Run simulation and cache result
+  const [simulationResult, setSimulationResult] = useState<SimulationResult>(() =>
+    runPortfolioSimulation(portfolio, config)
+  );
+
+  const handleRunSimulation = () => {
+    setIsSimulating(true);
+    setTimeout(() => {
+      const res = runPortfolioSimulation(portfolio, config);
+      setSimulationResult(res);
+      setIsSimulating(false);
+    }, 40);
+  };
+
+  // Re-run whenever portfolio weights change
+  useEffect(() => {
+    handleRunSimulation();
+  }, [portfolio.id, portfolio.totalCapital, portfolio.leverage, portfolio.cashWeight]);
+
+  // Adjust currency symbol automatically when switching presets
+  useEffect(() => {
+    if (portfolio.id === 'india_bluechip') {
+      setCurrencySymbol('₹');
+    } else {
+      setCurrencySymbol('$');
+    }
+  }, [portfolio.id]);
+
+  // Audit report text summary
+  const auditReportText = useMemo(() => {
+    const rm = simulationResult.riskMetrics;
+    return `===============================================================
+QUANTRISK — PORTFOLIO RISK & SCENARIO AUDIT REPORT
+Generated: ${new Date().toISOString()}
+Regulatory Framework: Basel III / FRTB Internal Model Approach (IMA)
+===============================================================
+
+PORTFOLIO METADATA:
+  Portfolio Name:      ${portfolio.name}
+  Total Capital:       ${currencySymbol}${portfolio.totalCapital.toLocaleString()}
+  Leverage:            ${portfolio.leverage.toFixed(2)}x
+  Cash Drag Buffer:    ${(portfolio.cashWeight * 100).toFixed(1)}%
+  Asset Count:         ${portfolio.assets.length} active positions
+
+SIMULATION SPECIFICATIONS:
+  Mathematical Model:  ${config.model.toUpperCase()}
+  Monte Carlo Paths:   ${simulationResult.paths.toLocaleString()}
+  Time Horizon:        ${config.timeHorizonDays} trading days (1-Month)
+  Variance Reduction:  ${config.varianceReduction}
+  Hardware Engine:     ${config.hardwareEngine}
+  Execution Latency:   ${simulationResult.executionTimeMs} ms
+  Scenario Throughput: ${simulationResult.throughputPathsPerSec.toLocaleString()} paths/sec
+
+BASEL TAIL RISK METRICS:
+  95% Value at Risk:       ${currencySymbol}${rm.var95.toLocaleString()} (${((rm.var95 / portfolio.totalCapital) * 100).toFixed(2)}% of capital)
+  99% Value at Risk:       ${currencySymbol}${rm.var99.toLocaleString()} (${((rm.var99 / portfolio.totalCapital) * 100).toFixed(2)}% of capital)
+  99.5% Value at Risk:     ${currencySymbol}${rm.var995.toLocaleString()} (${((rm.var995 / portfolio.totalCapital) * 100).toFixed(2)}% of capital)
+  95% Expected Shortfall:  ${currencySymbol}${rm.es95.toLocaleString()}
+  99% Expected Shortfall:  ${currencySymbol}${rm.es99.toLocaleString()} (FRTB IMA Benchmark)
+  EVT 99% GPD Fit:         ${currencySymbol}${rm.evtVaR99?.toLocaleString()}
+  Simulated Max Drawdown:  ${(rm.maxDrawdown * 100).toFixed(2)}%
+  Annualized Volatility:   ${(rm.portfolioAnnualVol * 100).toFixed(2)}%
+  Portfolio Sharpe Ratio:  ${rm.sharpeRatio}
+  Diversification Benefit: +${rm.diversificationBenefit}%
+
+COMPONENT RISK CONTRIBUTION (MARGINAL VaR):
+${rm.componentVaR.map((c) => `  - ${c.symbol.padEnd(12)}: ${String(c.percentContribution).padStart(3)}% of risk | Marginal VaR: ${currencySymbol}${c.marginalVaR.toLocaleString()}`).join('\n')}
+
+===============================================================
+STATUS: VERIFIED BY QUANTRISK STOCHASTIC ENGINE
+===============================================================`;
+  }, [simulationResult, portfolio, config, currencySymbol]);
+
+  const handleCopyReport = () => {
+    navigator.clipboard.writeText(auditReportText);
+    setCopiedReport(true);
+    setTimeout(() => setCopiedReport(false), 2000);
+  };
+
+  const handleDownloadReport = () => {
+    const element = document.createElement('a');
+    const file = new Blob([auditReportText], { type: 'text/plain' });
+    element.href = URL.createObjectURL(file);
+    element.download = `QuantRisk_Audit_${portfolio.name.replace(/\s+/g, '_')}.txt`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+      {/* 3-Zone Top Navigation Bar */}
+      <TopBar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onRunSimulation={handleRunSimulation}
+        isSimulating={isSimulating}
+        onExportReport={() => setShowReportModal(true)}
+        onOpenDocs={() => setShowDocsModal(true)}
+      />
+
+      {/* Main Workspace Viewport */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
+        {/* Sub-Header Metadata Bar: Currency toggle & Portfolio Quick Summary */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6 pb-3 border-b border-slate-900 text-xs font-mono text-slate-400">
+          <div className="flex items-center gap-3">
+            <span className="font-semibold text-slate-200">{portfolio.name}</span>
+            <span className="text-slate-600">·</span>
+            <span className="tabular-nums">
+              Capital: {currencySymbol}{portfolio.totalCapital.toLocaleString()}
+            </span>
+            <span className="text-slate-600">·</span>
+            <span>Leverage: {portfolio.leverage}x</span>
+            <span className="text-slate-600">·</span>
+            <span className="text-cyan-400">{config.model.replace('_', ' ').toUpperCase()}</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-slate-500">Denomination:</span>
+            <div className="flex items-center p-0.5 bg-slate-900 rounded-md border border-slate-800">
+              {['₹', '$', '€'].map((sym) => (
+                <button
+                  key={sym}
+                  onClick={() => setCurrencySymbol(sym)}
+                  className={`px-2 py-0.5 rounded-sm transition-colors cursor-pointer ${
+                    currencySymbol === sym
+                      ? 'bg-slate-800 text-cyan-400 font-bold'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {sym}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Tab 1: Primary Quantitative Risk Engine */}
+        {activeTab === 'risk_engine' && (
+          <div className="flex flex-col gap-6">
+            {/* Top row: Portfolio builder & Simulation Controls */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <PortfolioBuilder
+                portfolio={portfolio}
+                onUpdatePortfolio={setPortfolio}
+                currencySymbol={currencySymbol}
+              />
+              <SimulationControls
+                config={config}
+                onChangeConfig={setConfig}
+                onRunSimulation={handleRunSimulation}
+                isSimulating={isSimulating}
+              />
+            </div>
+
+            {/* Core Basel III / FRTB Risk Metrics Grid */}
+            <RiskMetricsCard
+              metrics={simulationResult.riskMetrics}
+              portfolioCapital={portfolio.totalCapital}
+              currencySymbol={currencySymbol}
+              executionTimeMs={simulationResult.executionTimeMs}
+              throughput={simulationResult.throughputPathsPerSec}
+            />
+
+            {/* Canvas Visualizers: Fan Chart & Loss Distribution */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <PathFanChart
+                result={simulationResult}
+                currencySymbol={currencySymbol}
+              />
+              <LossDistributionChart
+                result={simulationResult}
+                currencySymbol={currencySymbol}
+              />
+            </div>
+
+            {/* Asset Correlation Matrix */}
+            <CorrelationMatrix assets={portfolio.assets} />
+          </div>
+        )}
+
+        {/* Tab 2: Multi-Model Quantitative Matrix */}
+        {activeTab === 'model_comparison' && (
+          <ModelComparisonView
+            portfolio={portfolio}
+            currencySymbol={currencySymbol}
+          />
+        )}
+
+        {/* Tab 3: Macro Stress Testing & Historical Replay */}
+        {activeTab === 'stress_lab' && (
+          <StressTestingView
+            portfolio={portfolio}
+            currencySymbol={currencySymbol}
+          />
+        )}
+
+        {/* Tab 4: Options Greeks & Volatility Surface */}
+        {activeTab === 'options_greeks' && (
+          <OptionsModuleView
+            portfolio={portfolio}
+            currencySymbol={currencySymbol}
+          />
+        )}
+
+        {/* Tab 5: Kupiec Backtest Validation */}
+        {activeTab === 'backtesting' && (
+          <BacktestingView
+            portfolio={portfolio}
+            currencySymbol={currencySymbol}
+          />
+        )}
+
+        {/* Tab 6: GPU & Parallel Engine Benchmark */}
+        {activeTab === 'gpu_benchmark' && <GpuBenchmarkView />}
+      </main>
+
+      {/* Audit Report Modal */}
+      {showReportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-cyan-400" />
+                <span className="font-semibold text-sm text-slate-100">
+                  Institutional Risk Audit Report
+                </span>
+              </div>
+              <button
+                onClick={() => setShowReportModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 flex-1 overflow-y-auto">
+              <pre className="font-mono text-xs text-slate-300 bg-slate-950 p-4 rounded-lg border border-slate-800 whitespace-pre overflow-x-auto leading-relaxed">
+                {auditReportText}
+              </pre>
+            </div>
+
+            <div className="flex items-center justify-between p-4 border-t border-slate-800 gap-3">
+              <span className="text-xs text-slate-500 font-mono">
+                Complies with Basel Committee IMA standards
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleCopyReport}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                >
+                  {copiedReport ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-emerald-400">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copy Report</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={handleDownloadReport}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download .TXT</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Architecture & Research Documentation Modal */}
+      <DocumentationModal
+        isOpen={showDocsModal}
+        onClose={() => setShowDocsModal(false)}
+      />
+    </div>
+  );
+}

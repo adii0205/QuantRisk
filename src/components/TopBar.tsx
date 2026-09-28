@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Download, Cpu, ShieldAlert, Layers, Activity, GitCompare, RefreshCw, BookOpen } from 'lucide-react';
+import { Play, Download, Cpu, ShieldAlert, Layers, Activity, GitCompare, RefreshCw, BookOpen, Network, Zap } from 'lucide-react';
 
 interface TopBarProps {
   activeTab: string;
@@ -23,8 +23,10 @@ export const TopBar: React.FC<TopBarProps> = ({
     { id: 'model_comparison', label: 'Model Matrix', icon: GitCompare },
     { id: 'stress_lab', label: 'Stress Lab', icon: ShieldAlert },
     { id: 'options_greeks', label: 'Options Greeks', icon: Layers },
+    { id: 'deep_hedging', label: 'Deep Hedging', icon: Zap },
     { id: 'backtesting', label: 'Kupiec Backtest', icon: ShieldAlert },
     { id: 'gpu_benchmark', label: 'GPU Engine', icon: Cpu },
+    { id: 'distributed_cluster', label: 'Ray Cluster', icon: Network },
   ];
 
   return (

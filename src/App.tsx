@@ -14,6 +14,9 @@ import { StressTestingView } from './components/StressTestingView';
 import { OptionsModuleView } from './components/OptionsModuleView';
 import { BacktestingView } from './components/BacktestingView';
 import { GpuBenchmarkView } from './components/GpuBenchmarkView';
+import { DeepHedgingView } from './components/DeepHedgingView';
+import { DistributedClusterView } from './components/DistributedClusterView';
+import { YieldCurvePanel } from './components/YieldCurvePanel';
 import { DocumentationModal } from './components/DocumentationModal';
 import { Download, X, Copy, Check, FileText } from 'lucide-react';
 
@@ -222,6 +225,9 @@ STATUS: VERIFIED BY QUANTRISK STOCHASTIC ENGINE
 
             {/* Asset Correlation Matrix */}
             <CorrelationMatrix assets={portfolio.assets} />
+
+            {/* Sovereign Yield Curve & Term Structure */}
+            <YieldCurvePanel />
           </div>
         )}
 
@@ -249,7 +255,12 @@ STATUS: VERIFIED BY QUANTRISK STOCHASTIC ENGINE
           />
         )}
 
-        {/* Tab 5: Kupiec Backtest Validation */}
+        {/* Tab 5: Deep Hedging & Neural SDE (Phase 4 Advancement) */}
+        {activeTab === 'deep_hedging' && (
+          <DeepHedgingView currencySymbol={currencySymbol} />
+        )}
+
+        {/* Tab 6: Kupiec Backtest Validation */}
         {activeTab === 'backtesting' && (
           <BacktestingView
             portfolio={portfolio}
@@ -257,8 +268,16 @@ STATUS: VERIFIED BY QUANTRISK STOCHASTIC ENGINE
           />
         )}
 
-        {/* Tab 6: GPU & Parallel Engine Benchmark */}
+        {/* Tab 7: GPU & Parallel Engine Benchmark */}
         {activeTab === 'gpu_benchmark' && <GpuBenchmarkView />}
+
+        {/* Tab 8: Distributed Ray & Kafka Cluster (Phase 4 Advancement) */}
+        {activeTab === 'distributed_cluster' && (
+          <DistributedClusterView
+            currencySymbol={currencySymbol}
+            totalPortfolioCapital={portfolio.totalCapital}
+          />
+        )}
       </main>
 
       {/* Audit Report Modal */}

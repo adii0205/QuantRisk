@@ -191,14 +191,13 @@ The development of QuantRisk is structured across four progressive phases, advan
                                        │
                                        ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ PHASE 4: Systems Engineering & Production Infrastructure     [ROADMAP]       │
-│ • Distributed Computing: Apache Kafka stream ingestion + Redis cache        │
-│ • Ray / Celery worker cluster for parallel multi-node 100M+ scenario batches │
-│ • Native C++20 Core: Compiled via Wasm-SIMD with AVX-512 hardware vectorization│
-│ • WebGPU Compute Pipelines: Direct compute shaders replacing fragment passes │
-│ • Neural SDEs & Deep Hedging: Physics-Informed Neural Networks (PINNs)       │
-│ • Multi-Curve Term Structure: Hull-White 2-Factor & Heath-Jarrow-Morton     │
-│ • Observability: Prometheus metrics exporter & Grafana latency dashboards   │
+│ PHASE 4: Systems Engineering & Production Infrastructure     [ACTIVE PROGRESS]│
+│ • Deep Hedging & Neural SDE: Reinforcement learning agent minimizing CVaR    │
+│   under bid-ask slippage and non-linear Neural SDE volatility skew (ACTIVE)  │
+│ • Distributed Computing: Multi-node Ray/Kafka cluster engine partitioning    │
+│   1M-10M paths across worker pods with map-reduce aggregation (ACTIVE)       │
+│ • Multi-Curve Term Structure: Hull-White yield curve repricing for bonds     │
+│ • Next Horizon: Precompiled C++20 AVX-512 Wasm and Prometheus observability  │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 

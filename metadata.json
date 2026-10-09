@@ -1,6 +1,5 @@
 {
   "name": "QuantRisk — Monte Carlo Portfolio Risk Engine",
   "description": "Institutional-grade quantitative risk platform featuring GPU-accelerated Monte Carlo simulation, GJR-GARCH, Heston stochastic volatility, regime switching, Expected Shortfall, Kupiec backtesting, and stress testing.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "requestFramePermissions": []
 }

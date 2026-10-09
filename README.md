@@ -1,5 +1,6 @@
 # QuantRisk — GPU-Accelerated Monte Carlo Portfolio Risk & Scenario Engine
 
+[![CI](https://github.com/quantrisk/quantrisk/actions/workflows/ci.yml/badge.svg)](https://github.com/quantrisk/quantrisk/actions)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Basel Compliance](https://img.shields.io/badge/Basel_III-FRTB_IMA_Compliant-emerald.svg)](#basel-iii--frtb-compliance-standards)
 [![Hardware Acceleration](https://img.shields.io/badge/Engine-WebGL_GPGPU_%26_SIMD-cyan.svg)](#computational-mathematics--gpu-acceleration)

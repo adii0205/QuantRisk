@@ -15,6 +15,11 @@ import {
 } from '../utils/math';
 import { calculateCorrelationMatrix } from '../data/mockMarketData';
 import { gpuEngine } from './gpu-engine';
+import {
+  calculateBlackScholes,
+  revalueOptionFull,
+  revalueOptionTaylor,
+} from './options';
 
 export function runPortfolioSimulation(
   portfolio: Portfolio,
@@ -26,6 +31,21 @@ export function runPortfolioSimulation(
   const days = config.timeHorizonDays;
   const requestedPaths = config.paths;
   const dt = 1 / 252; // daily time step
+
+  // Options overlay configuration inside Monte Carlo
+  const hasOptions = Boolean(portfolio.options && portfolio.options.length > 0);
+  const assetSymbolToIndex = new Map<string, number>();
+  assets.forEach((a, idx) => assetSymbolToIndex.set(a.symbol, idx));
+
+  const precalculatedOptionGreeks = hasOptions
+    ? (portfolio.options || []).map((opt) => {
+        const assetIdx = assetSymbolToIndex.get(opt.underlying) ?? 0;
+        const spot0 = assets[assetIdx]?.currentPrice ?? 100;
+        const T0 = opt.expiryDays / 365;
+        const q = opt.dividendYield ?? 0;
+        return calculateBlackScholes(spot0, opt.strike, T0, 0.045, opt.impliedVol, opt.type, q);
+      })
+    : [];
 
   // Effective invested weights (scaled by leverage and non-cash)
   const investedWeight = Math.max(0, 1 - cashWeight) * leverage;
@@ -40,11 +60,12 @@ export function runPortfolioSimulation(
   const assetMus = assets.map((a) => a.expectedAnnualReturn);
   const assetSigmas = assets.map((a) => a.annualVolatility);
 
-  // Check if WebGL GPGPU shader hardware simulation is requested for GBM
+  // Check if WebGL GPGPU shader hardware simulation is requested for GBM (CPU fallback if options overlay active)
   const isGpuEligible =
     config.hardwareEngine === 'gpu_webgl' &&
     gpuEngine.isSupported &&
-    config.model === 'gbm';
+    config.model === 'gbm' &&
+    !hasOptions;
 
   // Determine actual simulation paths (if antithetic, we generate pairs)
   const isAntithetic = config.varianceReduction === 'antithetic';
@@ -376,8 +397,30 @@ export function runPortfolioSimulation(
           dailyPortfolioValues.push(currentPortfolioVal);
         }
 
-        // Final portfolio value and return for this path
-        const finalPortfolioVal = dailyPortfolioValues[dailyPortfolioValues.length - 1];
+        // Final portfolio value and return for this path including options revaluation
+        let optionsPathPnl = 0;
+        if (hasOptions && portfolio.options) {
+          for (let o = 0; o < portfolio.options.length; o++) {
+            const opt = portfolio.options[o];
+            const assetIdx = assetSymbolToIndex.get(opt.underlying) ?? 0;
+            const spot0 = initialAssetPrices[assetIdx];
+            const spotH = currentAssetPrices[assetIdx];
+            const volH = opt.impliedVol;
+
+            if (config.optionsPricingMode === 'delta_gamma_vega') {
+              const greeks = precalculatedOptionGreeks[o];
+              const taylorRes = revalueOptionTaylor(opt, spot0, spotH, greeks, volH);
+              optionsPathPnl += taylorRes.totalTaylorPnl;
+            } else {
+              // Full revaluation
+              const fullRes = revalueOptionFull(opt, spot0, spotH, days, volH);
+              optionsPathPnl += fullRes.pnl;
+            }
+          }
+        }
+
+        const finalPortfolioVal =
+          dailyPortfolioValues[dailyPortfolioValues.length - 1] + optionsPathPnl;
         const pnl = finalPortfolioVal - totalCapital;
         const ret = pnl / totalCapital;
 
@@ -395,7 +438,15 @@ export function runPortfolioSimulation(
         pathAssetLosses.push(assetDollarLosses);
 
         if (sampleStepsPaths.length < 500) {
-          sampleStepsPaths.push(dailyPortfolioValues);
+          if (optionsPathPnl !== 0) {
+            const adjustedDaily = dailyPortfolioValues.map((v, stepIdx) => {
+              const frac = stepIdx / Math.max(1, dailyPortfolioValues.length - 1);
+              return v + frac * optionsPathPnl;
+            });
+            sampleStepsPaths.push(adjustedDaily);
+          } else {
+            sampleStepsPaths.push(dailyPortfolioValues);
+          }
         }
       }
     }

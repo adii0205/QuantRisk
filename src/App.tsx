@@ -70,10 +70,10 @@ export default function App() {
     }
   };
 
-  // Re-run whenever portfolio weights change
+  // Re-run whenever portfolio weights or options book change
   useEffect(() => {
     handleRunSimulation();
-  }, [portfolio.id, portfolio.totalCapital, portfolio.leverage, portfolio.cashWeight]);
+  }, [portfolio.id, portfolio.totalCapital, portfolio.leverage, portfolio.cashWeight, portfolio.options]);
 
   // Adjust currency symbol automatically when switching presets or changing base currency
   useEffect(() => {
@@ -285,6 +285,9 @@ STATUS: VERIFIED BY QUANTRISK STOCHASTIC ENGINE
         {activeTab === 'options_greeks' && (
           <OptionsModuleView
             portfolio={portfolio}
+            onUpdatePortfolioOptions={(newOptions) => {
+              setPortfolio((prev) => ({ ...prev, options: newOptions }));
+            }}
             currencySymbol={currencySymbol}
           />
         )}

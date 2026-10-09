@@ -54,6 +54,7 @@ export interface Portfolio {
   baseCurrency?: CurrencyCode; // default base currency e.g. USD, INR
   datasetMetadata?: DatasetMetadata;
   assets: Asset[];
+  options?: OptionPosition[];
 }
 
 export interface SimulationConfig {
@@ -74,6 +75,8 @@ export interface SimulationConfig {
   hestonXi?: number;
   hestonRho?: number;
   regimeProbMatrix?: number[][];
+  // Options revaluation mode inside Monte Carlo
+  optionsPricingMode?: 'full_revaluation' | 'delta_gamma_vega' | 'delta_gamma_normal';
 }
 
 export interface RiskMetrics {
@@ -124,11 +127,13 @@ export interface OptionPosition {
   id: string;
   underlying: string;
   type: 'call' | 'put';
+  style?: 'european' | 'american';
   strike: number;
   expiryDays: number;
   impliedVol: number;
   quantity: number; // positive = long, negative = short
   premium: number;
+  dividendYield?: number; // continuous dividend yield q (e.g. 0.015 = 1.5%)
 }
 
 export interface OptionGreeks {
@@ -138,6 +143,10 @@ export interface OptionGreeks {
   theta: number;
   rho: number;
   theoreticalPrice: number;
+  // Second-order / cross Greeks
+  vanna: number; // dDelta / dSigma = dVega / dSpot
+  volga: number; // dVega / dSigma (vomma)
+  charm: number; // -dDelta / dTime (delta decay)
 }
 
 export interface HistoricalStressScenario {

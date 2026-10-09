@@ -29,7 +29,7 @@ QuantRisk is structured as an end-to-end institutional quantitative risk pipelin
 ```
                     ┌───────────────────────────────────┐
                     │            MARKET DATA            │
-                    │   NSE / Yahoo / FactSet / APIs    │
+                    │   NSE / Yahoo / Stooq / Open EOD  │
                     └─────────────────┬─────────────────┘
                                       │
                                       ▼
@@ -338,10 +338,23 @@ Where $N$ is sample size, $x$ is actual observed breaches ($Loss > VaR_{0.99}$),
 Evaluates whether tail breaches cluster in consecutive time intervals:
 $$LR_{IND} = -2 \ln \left[ \frac{\pi^{n_{01} + n_{11}} (1 - \pi)^{n_{00} + n_{10}}}{\pi_0^{n_{01}} (1 - \pi_0)^{n_{00}} \pi_1^{n_{11}} (1 - \pi_1)^{n_{10}}} \right] \sim \chi^2(1)$$
 
-### 3. Basel Traffic Light Classification
-- **Green Zone** ($\le 9$ breaches / 250 days): Model verified. Baseline supervisory capital multiplier ($k = 3.0$).
-- **Yellow Zone** ($10 - 19$ breaches): Warning status. Supervisory multiplier penalty ($k \in [3.4, 3.85]$).
-- **Red Zone** ($\ge 20$ breaches): Model rejected. Mandatory fallback to standardized regulatory approach.
+### 3. Basel Committee on Banking Supervision (BCBS) Traffic Light Zones
+Under the BCBS framework (N = 250 observations at 99% confidence level, $p = 0.01$), zones are determined by the exact cumulative binomial probability $P(X \le x) = \sum_{k=0}^x \binom{250}{k} 0.01^k 0.99^{250-k}$:
+- **Green Zone (0 to 4 exceptions)**: $P(X \le 4) = 89.22\% < 95\%$. Model is fully accepted with base supervisory multiplier $k = 3.00$ (add-on = 0.00).
+- **Yellow Zone (5 to 9 exceptions)**: $95\% \le P(X \le x) < 99.99\%$. Supervisory scaling plus-factor add-on is applied:
+  - 5 exceptions: +0.40 add-on ($k = 3.40$)
+  - 6 exceptions: +0.50 add-on ($k = 3.50$)
+  - 7 exceptions: +0.65 add-on ($k = 3.65$)
+  - 8 exceptions: +0.75 add-on ($k = 3.75$)
+  - 9 exceptions: +0.85 add-on ($k = 3.85$)
+- **Red Zone ($\ge 10$ exceptions)**: $P(X \le x) \ge 99.99\%$. Automatic model rejection with maximum penalty ($k = 4.00$).
+- **FRTB Desk-Level Compliance**: Evaluates rolling 250-day windows. Any trading desk with $> 12$ exceptions at 99% or $> 30$ exceptions at 97.5% fails the IMA desk eligibility test and is reassigned to the Standardised Approach (SA).
+
+### 4. Comprehensive Model Scoring & Statistical Ranking
+- **Pinball (Quantile) Loss**: $L_\alpha(y, q) = (y - q)(\alpha - \mathbf{1}_{y < q})$ provides strictly consistent scoring for out-of-sample VaR.
+- **Fissler–Ziegel (2016) Joint VaR/ES Scoring Function**: Strictly consistent 0-homogeneous scoring rule evaluating simultaneous joint accuracy of VaR and Expected Shortfall.
+- **Acerbi–Székely (2014) Direct ES Tests ($Z_1, Z_2$)**: Unconditionally evaluates magnitude of tail shortfall beyond VaR.
+- **Hansen's Model Confidence Set (MCS)**: Iteratively eliminates statistically inferior forecasting models at $\alpha = 0.10$ based on relative loss distributions to isolate the optimal risk models.
 
 ---
 

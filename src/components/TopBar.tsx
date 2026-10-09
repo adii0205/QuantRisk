@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Download, Cpu, ShieldAlert, Layers, Activity, GitCompare, RefreshCw, BookOpen, Network, Zap } from 'lucide-react';
+import { Play, Download, Cpu, ShieldAlert, Layers, Activity, GitCompare, RefreshCw, BookOpen, Network, Zap, Sliders, Database } from 'lucide-react';
 
 interface TopBarProps {
   activeTab: string;
@@ -8,6 +8,8 @@ interface TopBarProps {
   isSimulating: boolean;
   onExportReport: () => void;
   onOpenDocs: () => void;
+  onOpenMarketData: () => void;
+  isRealData: boolean;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -17,9 +19,12 @@ export const TopBar: React.FC<TopBarProps> = ({
   isSimulating,
   onExportReport,
   onOpenDocs,
+  onOpenMarketData,
+  isRealData,
 }) => {
   const navItems = [
     { id: 'risk_engine', label: 'Risk Engine', icon: Activity },
+    { id: 'model_calibration', label: 'Calibration', icon: Sliders },
     { id: 'model_comparison', label: 'Model Matrix', icon: GitCompare },
     { id: 'stress_lab', label: 'Stress Lab', icon: ShieldAlert },
     { id: 'options_greeks', label: 'Options Greeks', icon: Layers },
@@ -69,6 +74,19 @@ export const TopBar: React.FC<TopBarProps> = ({
 
       {/* Zone 3: Primary Actions */}
       <div className="flex items-center gap-2.5">
+        <button
+          onClick={onOpenMarketData}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap cursor-pointer ${
+            isRealData
+              ? 'bg-emerald-950/60 hover:bg-emerald-900/60 border-emerald-700/80 text-emerald-300'
+              : 'bg-purple-950/60 hover:bg-purple-900/60 border-purple-700/80 text-purple-300'
+          }`}
+          title="Open Market Data Feeds & CSV Importer"
+        >
+          <Database className="w-3.5 h-3.5" />
+          <span>{isRealData ? 'Real Market Data' : 'Demo Factor Mode'}</span>
+        </button>
+
         <button
           onClick={onOpenDocs}
           className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-cyan-300 bg-cyan-950/60 hover:bg-cyan-900/60 border border-cyan-800/80 rounded-lg transition-colors whitespace-nowrap cursor-pointer"

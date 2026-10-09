@@ -98,6 +98,30 @@ export function chiSquareSurvival(lr: number, dof: number = 1): number {
 }
 
 // Binomial Cumulative Probability: P(X <= k) for X ~ Binomial(n, p)
+export function logGamma(z: number): number {
+  if (z <= 0) return 0;
+  const p = [
+    676.5203681218851,
+    -1259.1392167224028,
+    771.32342877765313,
+    -176.61502916214059,
+    12.507343278686905,
+    -0.138571095856205,
+    9.9843695780195716e-6,
+    1.5056327351493116e-7,
+  ];
+  if (z < 0.5) {
+    return Math.log(Math.PI / Math.sin(Math.PI * z)) - logGamma(1 - z);
+  }
+  z -= 1;
+  let x = 0.99999999999980993;
+  for (let i = 0; i < p.length; i++) {
+    x += p[i]! / (z + i + 1);
+  }
+  const t = z + p.length - 0.5;
+  return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x);
+}
+
 export function binomialCDF(k: number, n: number, p: number): number {
   if (k < 0) return 0;
   if (k >= n) return 1;

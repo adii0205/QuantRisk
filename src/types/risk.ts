@@ -16,6 +16,20 @@ export type VarianceReduction =
   | 'sobol_qmc'
   | 'importance_sampling';
 
+export type CurrencyCode = 'USD' | 'EUR' | 'GBP' | 'INR' | 'JPY' | 'CHF';
+
+export interface DatasetMetadata {
+  name: string;
+  source: 'stooq' | 'yahoo' | 'csv_import' | 'bundled_real' | 'synthetic_demo';
+  dateRange: string;
+  startDate: string;
+  endDate: string;
+  observationCount: number;
+  hash: string;
+  licenseNote?: string;
+  isRealMarketData: boolean;
+}
+
 export type HardwareEngine = 'cpu_single' | 'cpu_worker' | 'gpu_webgl';
 
 export interface Asset {
@@ -26,7 +40,8 @@ export interface Asset {
   currentPrice: number;
   expectedAnnualReturn: number; // mu
   annualVolatility: number; // sigma
-  historicalReturns: number[]; // daily historical returns (~252 days)
+  historicalReturns: number[]; // daily historical returns
+  currency?: CurrencyCode; // Asset native currency (defaults to USD or portfolio base)
 }
 
 export interface Portfolio {
@@ -36,6 +51,8 @@ export interface Portfolio {
   cashWeight: number; // 0 - 1
   leverage: number; // 1.0 = no leverage, 1.5 = 150% gross
   totalCapital: number;
+  baseCurrency?: CurrencyCode; // default base currency e.g. USD, INR
+  datasetMetadata?: DatasetMetadata;
   assets: Asset[];
 }
 

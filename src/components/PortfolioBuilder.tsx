@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Asset, Portfolio } from '../types/risk';
+import { Asset, Portfolio, CurrencyCode } from '../types/risk';
 import { PRESET_PORTFOLIOS } from '../data/mockMarketData';
-import { Sliders, Plus, Trash2, RotateCcw, DollarSign } from 'lucide-react';
+import { SUPPORTED_CURRENCIES, formatCurrency } from '../utils/currency';
+import { Sliders, Plus, Trash2, RotateCcw, DollarSign, Database, Hash, Calendar } from 'lucide-react';
 
 interface PortfolioBuilderProps {
   portfolio: Portfolio;
@@ -22,6 +23,13 @@ export const PortfolioBuilder: React.FC<PortfolioBuilderProps> = ({
       setSelectedPresetId(presetId);
       onUpdatePortfolio(JSON.parse(JSON.stringify(found)));
     }
+  };
+
+  const handleCurrencyChange = (newCurrency: CurrencyCode) => {
+    onUpdatePortfolio({
+      ...portfolio,
+      baseCurrency: newCurrency,
+    });
   };
 
   const handleWeightChange = (index: number, newWeight: number) => {
@@ -88,8 +96,38 @@ export const PortfolioBuilder: React.FC<PortfolioBuilderProps> = ({
         </div>
       </div>
 
-      {/* Global Portfolio Parameters: Capital, Cash %, Leverage */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 p-3 bg-slate-950/50 rounded-lg border border-slate-800/60 text-xs font-mono">
+      {/* Dataset Provenance & Data Mode Banner */}
+      {portfolio.datasetMetadata && (
+        <div className="mb-4 p-2.5 rounded-lg bg-slate-950/70 border border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+          <div className="flex items-center gap-2">
+            <Database className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="font-bold text-white">{portfolio.datasetMetadata.name}</span>
+            <span
+              className={`text-[10px] px-2 py-0.2 rounded font-bold ${
+                portfolio.datasetMetadata.isRealMarketData
+                  ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                  : 'bg-purple-950 text-purple-300 border border-purple-800'
+              }`}
+            >
+              {portfolio.datasetMetadata.isRealMarketData ? 'REAL MARKET DATA' : 'DEMO MODE'}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 text-slate-400 text-[11px]">
+            <span className="flex items-center gap-1">
+              <Calendar className="w-3 h-3 text-slate-500" />
+              {portfolio.datasetMetadata.dateRange}
+            </span>
+            <span className="flex items-center gap-1 text-cyan-300 font-semibold">
+              <Hash className="w-3 h-3 text-slate-500" />
+              {portfolio.datasetMetadata.hash.slice(0, 16)}...
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Global Portfolio Parameters: Capital, Currency, Cash %, Leverage */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4 p-3 bg-slate-950/50 rounded-lg border border-slate-800/60 text-xs font-mono">
         <div>
           <label className="text-slate-400 block mb-1 text-[11px]">Total Portfolio Capital</label>
           <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 px-2.5 py-1.5 rounded-md">
@@ -102,6 +140,21 @@ export const PortfolioBuilder: React.FC<PortfolioBuilderProps> = ({
               className="w-full bg-transparent text-slate-100 focus:outline-hidden tabular-nums font-semibold"
             />
           </div>
+        </div>
+
+        <div>
+          <label className="text-slate-400 block mb-1 text-[11px]">Base Portfolio Currency</label>
+          <select
+            value={portfolio.baseCurrency || 'USD'}
+            onChange={(e) => handleCurrencyChange(e.target.value as CurrencyCode)}
+            className="w-full bg-slate-900 border border-slate-800 px-2.5 py-1.5 rounded-md text-white font-semibold focus:outline-none focus:border-cyan-500 cursor-pointer"
+          >
+            {Object.keys(SUPPORTED_CURRENCIES).map((c) => (
+              <option key={c} value={c}>
+                {c} ({SUPPORTED_CURRENCIES[c as CurrencyCode].symbol}) — {SUPPORTED_CURRENCIES[c as CurrencyCode].name}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>

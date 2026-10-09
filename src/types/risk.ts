@@ -147,6 +147,8 @@ export interface KupiecBacktestResult {
   pValuePOF: number;
   christoffersenLR?: number;
   christoffersenPValue?: number;
+  conditionalCoverageLR?: number;
+  conditionalCoveragePValue?: number;
   baselZone: 'GREEN' | 'YELLOW' | 'RED';
   historicalVaRSeries: number[];
   historicalPnLSeries: number[];

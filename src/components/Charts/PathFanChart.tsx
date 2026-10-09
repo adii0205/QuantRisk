@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { SimulationResult } from '../../types/risk';
+import { arrayMax, arrayMin } from '../../utils/math';
 
 interface PathFanChartProps {
   result: SimulationResult;
@@ -35,14 +36,14 @@ export const PathFanChart: React.FC<PathFanChartProps> = ({
     const chartW = width - padding.left - padding.right;
     const chartH = height - padding.top - padding.bottom;
 
-    // Min and max across percentiles
+    // Min and max across percentiles without array spread
     const allValues = [
       ...percentiles.p1,
       ...percentiles.p99,
       portfolioValue,
     ];
-    let minY = Math.min(...allValues) * 0.96;
-    let maxY = Math.max(...allValues) * 1.04;
+    let minY = arrayMin(allValues) * 0.96;
+    let maxY = arrayMax(allValues) * 1.04;
     if (minY === maxY) {
       minY *= 0.9;
       maxY *= 1.1;

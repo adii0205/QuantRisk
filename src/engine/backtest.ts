@@ -1,8 +1,12 @@
 import { KupiecBacktestResult, Portfolio, SimulationModelType } from '../types/risk';
-import { sampleStandardNormal } from '../utils/math';
+import { chiSquareSurvival, sampleStandardNormal } from '../utils/math';
 
 /**
  * Kupiec Proportion of Failures (POF) & Christoffersen Independence Backtesting Test.
+ * Evaluates whether out-of-sample 99% VaR predictions satisfy:
+ * 1. Unconditional Coverage: H0: E[breach rate] = 1 - alpha (Kupiec POF test, Chi-Square 1 DOF)
+ * 2. Independence: H0: breaches are independent in time (Christoffersen test, Chi-Square 1 DOF)
+ * 3. Conditional Coverage: Joint test H0: correct coverage AND independent (Chi-Square 2 DOF)
  */
 export function runKupiecBacktest(
   portfolio: Portfolio,
@@ -36,27 +40,27 @@ export function runKupiecBacktest(
   let modelVaRMultiplier = 2.326;
   switch (model) {
     case 'gbm':
-      modelVaRMultiplier = 2.326; // Gaussian
+      modelVaRMultiplier = 2.326; // Gaussian benchmark
       break;
     case 'student_t':
       modelVaRMultiplier = 2.68; // Fat tails
       break;
     case 'bootstrap':
-      modelVaRMultiplier = 2.54; // Empirical
+      modelVaRMultiplier = 2.54; // Empirical historical
       break;
     case 'garch':
     case 'gjr_garch':
-      modelVaRMultiplier = 2.62; // Time-varying
+      modelVaRMultiplier = 2.62; // Time-varying conditional volatility
       break;
     case 'heston':
-      modelVaRMultiplier = 2.72; // Stochastic vol
+      modelVaRMultiplier = 2.72; // Stochastic volatility
       break;
     case 'regime_switching':
     case 'bayesian_hybrid':
       modelVaRMultiplier = 2.85; // Macro crisis regimes
       break;
     case 'copula':
-      modelVaRMultiplier = 2.75;
+      modelVaRMultiplier = 2.75; // Joint tail dependence
       break;
   }
 
@@ -88,7 +92,7 @@ export function runKupiecBacktest(
     const actualPnL = portfolioCapital * dayReturn;
     historicalPnLSeries.push(Math.round(actualPnL));
 
-    // A VaR breach occurs when actual Loss exceeds predicted VaR (i.e. PnL <= -VaR)
+    // A VaR breach occurs when actual Loss exceeds predicted VaR (i.e. PnL <= -predictedVaR)
     if (actualPnL <= -predictedVaR) {
       breachIndices.push(t);
     }
@@ -98,8 +102,8 @@ export function runKupiecBacktest(
   const expectedBreaches = Math.round(N * p * 10) / 10;
   const breachRate = Math.round((x / N) * 1000) / 10; // in %
 
-  // Kupiec Likelihood Ratio Test:
-  // LR_POF = -2 * ln( ((1-p)^(N-x) * p^x) / ((1 - x/N)^(N-x) * (x/N)^x) )
+  // 1. Kupiec Proportion of Failures (POF) Likelihood Ratio Test:
+  // Under H0: LR_POF = -2 * ln( ((1-p)^(N-x) * p^x) / ((1 - x/N)^(N-x) * (x/N)^x) )
   let lrPOF = 0;
   if (x > 0 && x < N) {
     const termNum = (N - x) * Math.log(1 - p) + x * Math.log(p);
@@ -109,11 +113,10 @@ export function runKupiecBacktest(
     lrPOF = Math.max(0, -2 * (N * Math.log(1 - p)));
   }
 
-  // Chi-Square(1) approximation p-value: P(X >= lr)
-  // For 1 dof: p = 1 - erf(sqrt(lr / 2))
-  const pValuePOF = Math.max(0, 1 - Math.min(1, Math.sqrt(lrPOF / 2) * 0.79788 * (1 - lrPOF / 6)));
+  // Exact Chi-Square(1) survival p-value: P(X >= lrPOF) = erfc(sqrt(lrPOF / 2))
+  const pValuePOF = chiSquareSurvival(lrPOF, 1);
 
-  // Christoffersen Independence Test (consecutive breach clustering)
+  // 2. Christoffersen Independence Test (consecutive breach clustering)
   let n00 = 0, n01 = 0, n10 = 0, n11 = 0;
   const breachSet = new Set(breachIndices);
   for (let t = 1; t < N; t++) {
@@ -136,8 +139,17 @@ export function runKupiecBacktest(
     christoffersenLR = Math.max(0, -2 * (lNull - lAlt));
   }
 
-  // Basel Traffic Light Classification (for 250 to 1000 days at 99% VaR)
-  // Scaled for N days:
+  // Exact Chi-Square(1) survival p-value for independence
+  const christoffersenPValue = chiSquareSurvival(christoffersenLR, 1);
+
+  // 3. Christoffersen Conditional Coverage Joint Test:
+  // LR_CC = LR_POF + LR_ind ~ Chi-Square(2)
+  const lrCC = lrPOF + christoffersenLR;
+  const pValueCC = chiSquareSurvival(lrCC, 2);
+
+  // Basel Committee on Banking Supervision (BCBS) Traffic Light Classification:
+  // Basel criteria for 250 days at 99% VaR: Green <= 4, Yellow 5-9, Red >= 10.
+  // Scaled for N sample days:
   const redThreshold = Math.ceil(expectedBreaches * 2.2);
   const yellowThreshold = Math.ceil(expectedBreaches * 1.4);
 
@@ -159,7 +171,9 @@ export function runKupiecBacktest(
     likelihoodRatioPOF: Math.round(lrPOF * 100) / 100,
     pValuePOF: Math.round(pValuePOF * 1000) / 1000,
     christoffersenLR: Math.round(christoffersenLR * 100) / 100,
-    christoffersenPValue: Math.round((1 - Math.min(1, Math.sqrt(christoffersenLR / 2) * 0.79788)) * 1000) / 1000,
+    christoffersenPValue: Math.round(christoffersenPValue * 1000) / 1000,
+    conditionalCoverageLR: Math.round(lrCC * 100) / 100,
+    conditionalCoveragePValue: Math.round(pValueCC * 1000) / 1000,
     baselZone,
     historicalVaRSeries,
     historicalPnLSeries,

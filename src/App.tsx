@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Portfolio, SimulationConfig, SimulationResult } from './types/risk';
 import { PRESET_PORTFOLIOS } from './data/mockMarketData';
 import { runPortfolioSimulation } from './engine/models';
+import { runSimulationAsync } from './engine/simulation-runner';
 import { TopBar } from './components/TopBar';
 import { PortfolioBuilder } from './components/PortfolioBuilder';
 import { SimulationControls } from './components/SimulationControls';
@@ -52,13 +53,17 @@ export default function App() {
     runPortfolioSimulation(portfolio, config)
   );
 
-  const handleRunSimulation = () => {
+  const handleRunSimulation = async () => {
     setIsSimulating(true);
-    setTimeout(() => {
-      const res = runPortfolioSimulation(portfolio, config);
+    try {
+      const res = await runSimulationAsync(portfolio, config);
       setSimulationResult(res);
+    } catch {
+      const fallback = runPortfolioSimulation(portfolio, config);
+      setSimulationResult(fallback);
+    } finally {
       setIsSimulating(false);
-    }, 40);
+    }
   };
 
   // Re-run whenever portfolio weights change

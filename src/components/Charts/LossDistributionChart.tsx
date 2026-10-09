@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { SimulationResult } from '../../types/risk';
-import { computeKDE } from '../../utils/math';
+import { arrayMax, arrayMin, computeKDE } from '../../utils/math';
 
 interface LossDistributionChartProps {
   result: SimulationResult;
@@ -34,8 +34,8 @@ export const LossDistributionChart: React.FC<LossDistributionChartProps> = ({
 
     // Convert PnL to Loss (Loss = -PnL, so positive Loss is bad)
     const losses = finalPnLDistribution.map((pnl) => -pnl);
-    const minLoss = Math.min(...losses);
-    const maxLoss = Math.max(...losses);
+    const minLoss = arrayMin(losses);
+    const maxLoss = arrayMax(losses);
 
     // Filter extreme 0.1% outliers for plotting clarity
     const sorted = [...losses].sort((a, b) => a - b);
@@ -55,7 +55,7 @@ export const LossDistributionChart: React.FC<LossDistributionChartProps> = ({
       }
     });
 
-    const maxBinCount = Math.max(...bins, 1);
+    const maxBinCount = arrayMax(bins) || 1;
 
     const getX = (lossVal: number) =>
       padding.left + ((lossVal - plotMin) / lossRange) * chartW;

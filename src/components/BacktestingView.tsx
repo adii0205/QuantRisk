@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Portfolio, SimulationModelType } from '../types/risk';
 import { runKupiecBacktest } from '../engine/backtest';
-import { ShieldCheck, AlertTriangle, XCircle, CheckCircle2, RotateCcw } from 'lucide-react';
+import { arrayMax, arrayMin } from '../utils/math';
+import { ShieldCheck, AlertTriangle, XCircle, CheckCircle2 } from 'lucide-react';
 
 interface BacktestingViewProps {
   portfolio: Portfolio;
@@ -42,8 +43,12 @@ export const BacktestingView: React.FC<BacktestingViewProps> = ({
     const pnl = backtest.historicalPnLSeries;
     const varThreshold = backtest.historicalVaRSeries;
 
-    const minPnL = Math.min(...pnl, -Math.max(...varThreshold));
-    const maxPnL = Math.max(...pnl, Math.max(...varThreshold));
+    const maxVar = arrayMax(varThreshold);
+    const minPnlVal = arrayMin(pnl);
+    const maxPnlVal = arrayMax(pnl);
+
+    const minPnL = Math.min(minPnlVal, -maxVar);
+    const maxPnL = Math.max(maxPnlVal, maxVar);
     const range = maxPnL - minPnL || 1;
 
     const getX = (t: number) => padding.left + (t / (N - 1)) * chartW;
@@ -104,9 +109,9 @@ export const BacktestingView: React.FC<BacktestingViewProps> = ({
     ctx.textAlign = 'right';
     ctx.fillText(`${currencySymbol}0`, padding.left - 8, zeroY + 3);
     ctx.fillText(
-      `-${currencySymbol}${(Math.round(Math.max(...varThreshold) / 1000))}k`,
+      `-${currencySymbol}${(Math.round(maxVar / 1000))}k`,
       padding.left - 8,
-      getY(-Math.max(...varThreshold)) + 3
+      getY(-maxVar) + 3
     );
 
     ctx.textAlign = 'center';
@@ -148,8 +153,8 @@ export const BacktestingView: React.FC<BacktestingViewProps> = ({
             <span>Kupiec POF & Christoffersen Backtesting Suite</span>
           </h2>
           <p className="text-xs text-slate-400 mt-1 max-w-3xl">
-            "Your model predicts tomorrow's 99% VaR. Then the actual market happens." Run rigorous
-            unconditional coverage (Kupiec Likelihood Ratio) and independence tests.
+            "Your model predicts tomorrow's 99% VaR. Then the actual market happens." Run exact
+            unconditional coverage (Kupiec LR), independence tests, and joint conditional coverage.
           </p>
         </div>
 
@@ -195,14 +200,6 @@ export const BacktestingView: React.FC<BacktestingViewProps> = ({
       {/* Statistical Test KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 font-mono text-xs">
         <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
-          <div className="text-slate-400 text-[11px]">Total Trading Days (N)</div>
-          <div className="text-xl font-bold text-slate-100 mt-1 tabular-nums">
-            {backtest.totalObservations} Days
-          </div>
-          <div className="text-[10px] text-slate-500">~3.0 Years Historical Out-of-Sample</div>
-        </div>
-
-        <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
           <div className="text-slate-400 text-[11px]">Empirical Breach Rate</div>
           <div className="text-xl font-bold text-amber-400 mt-1 tabular-nums">
             {backtest.breachRate}%
@@ -213,22 +210,32 @@ export const BacktestingView: React.FC<BacktestingViewProps> = ({
         </div>
 
         <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
-          <div className="text-slate-400 text-[11px]">Kupiec LR Statistic (POF)</div>
+          <div className="text-slate-400 text-[11px]">Kupiec LR (Unconditional)</div>
           <div className="text-xl font-bold text-cyan-400 mt-1 tabular-nums">
             LR = {backtest.likelihoodRatioPOF}
           </div>
-          <div className="text-[10px] text-slate-500">
-            p-value = {backtest.pValuePOF} (Critical: 3.84)
+          <div className="text-[10px] text-slate-400">
+            p = {backtest.pValuePOF} (χ²₁ crit: 3.84)
           </div>
         </div>
 
         <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
-          <div className="text-slate-400 text-[11px]">Christoffersen Independence</div>
+          <div className="text-slate-400 text-[11px]">Christoffersen (Independence)</div>
           <div className="text-xl font-bold text-sky-400 mt-1 tabular-nums">
             LR = {backtest.christoffersenLR}
           </div>
-          <div className="text-[10px] text-slate-500">
-            Tests breach clustering in time
+          <div className="text-[10px] text-slate-400">
+            p = {backtest.christoffersenPValue ?? '0.000'} (χ²₁ crit: 3.84)
+          </div>
+        </div>
+
+        <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+          <div className="text-slate-400 text-[11px]">Conditional Coverage (Joint)</div>
+          <div className="text-xl font-bold text-indigo-400 mt-1 tabular-nums">
+            LR = {backtest.conditionalCoverageLR ?? backtest.likelihoodRatioPOF}
+          </div>
+          <div className="text-[10px] text-slate-400">
+            p = {backtest.conditionalCoveragePValue ?? '0.000'} (χ²₂ crit: 5.99)
           </div>
         </div>
       </div>

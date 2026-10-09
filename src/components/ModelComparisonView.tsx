@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Portfolio, SimulationModelType } from '../types/risk';
 import { runPortfolioSimulation } from '../engine/models';
+import { runSimulationAsync } from '../engine/simulation-runner';
 import { GitCompare, Play, CheckCircle2, TrendingDown } from 'lucide-react';
 
 interface ModelComparisonViewProps {
@@ -90,11 +91,13 @@ export const ModelComparisonView: React.FC<ModelComparisonViewProps> = ({
     },
   ];
 
-  const runAllComparisons = () => {
+  const runAllComparisons = async () => {
     setLoading(true);
-    setTimeout(() => {
-      const rows: ModelEvalRow[] = modelsToCompare.map((m) => {
-        const res = runPortfolioSimulation(portfolio, {
+    const rows: ModelEvalRow[] = [];
+
+    for (const m of modelsToCompare) {
+      try {
+        const res = await runSimulationAsync(portfolio, {
           model: m.id,
           paths: 10000,
           timeHorizonDays: 21,
@@ -103,7 +106,7 @@ export const ModelComparisonView: React.FC<ModelComparisonViewProps> = ({
           confidenceLevels: [0.95, 0.99],
         });
 
-        return {
+        rows.push({
           id: m.id,
           name: m.name,
           category: m.category,
@@ -114,12 +117,33 @@ export const ModelComparisonView: React.FC<ModelComparisonViewProps> = ({
           skewness: res.riskMetrics.skewness,
           runtimeMs: res.executionTimeMs,
           keyAssumption: m.keyAssumption,
-        };
-      });
+        });
+      } catch {
+        const res = runPortfolioSimulation(portfolio, {
+          model: m.id,
+          paths: 10000,
+          timeHorizonDays: 21,
+          varianceReduction: 'antithetic',
+          hardwareEngine: 'cpu_worker',
+          confidenceLevels: [0.95, 0.99],
+        });
+        rows.push({
+          id: m.id,
+          name: m.name,
+          category: m.category,
+          var99: res.riskMetrics.var99,
+          es99: res.riskMetrics.es99,
+          maxDrawdown: res.riskMetrics.maxDrawdown,
+          kurtosis: res.riskMetrics.kurtosis,
+          skewness: res.riskMetrics.skewness,
+          runtimeMs: res.executionTimeMs,
+          keyAssumption: m.keyAssumption,
+        });
+      }
+    }
 
-      setComparisonResults(rows);
-      setLoading(false);
-    }, 40);
+    setComparisonResults(rows);
+    setLoading(false);
   };
 
   useEffect(() => {

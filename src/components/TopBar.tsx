@@ -28,6 +28,7 @@ export const TopBar: React.FC<TopBarProps> = ({
     { id: 'model_comparison', label: 'Model Matrix', icon: GitCompare },
     { id: 'stress_lab', label: 'Stress Lab', icon: ShieldAlert },
     { id: 'options_greeks', label: 'Options Greeks', icon: Layers },
+    { id: 'yield_curve', label: 'Term Structure', icon: Activity },
     { id: 'deep_hedging', label: 'Deep Hedging', icon: Zap },
     { id: 'backtesting', label: 'Kupiec Backtest', icon: ShieldAlert },
     { id: 'gpu_benchmark', label: 'GPU Engine', icon: Cpu },

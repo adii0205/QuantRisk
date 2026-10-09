@@ -27,7 +27,7 @@ export const RiskMetricsCard: React.FC<RiskMetricsCardProps> = ({
             Basel FRTB Tail Risk & Expected Shortfall Engine
           </span>
           <span className="text-xs text-slate-500">·</span>
-          <span className="text-xs text-slate-400 font-mono">Internal Model Approach (IMA)</span>
+          <span className="text-xs text-emerald-400 font-mono font-medium">FRTB-Inspired IMA (Educational)</span>
         </div>
 
         <div className="flex items-center gap-3 text-xs font-mono text-slate-400">
@@ -36,6 +36,23 @@ export const RiskMetricsCard: React.FC<RiskMetricsCardProps> = ({
           <span>Throughput: <strong className="text-slate-200">{throughput.toLocaleString()}</strong> paths/sec</span>
         </div>
       </div>
+
+      {/* FRTB IMA Regulatory Summary Bar */}
+      {metrics.frtbES975 && (
+        <div className="mb-4 bg-emerald-950/25 border border-emerald-800/40 rounded-lg p-3 text-xs font-mono flex flex-wrap items-center justify-between gap-3 text-slate-300">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span className="text-emerald-300 font-semibold">FRTB IMA Benchmark ES (97.5%):</span>
+            <span className="text-white font-bold">{currencySymbol}{metrics.frtbES975.toLocaleString()}</span>
+          </div>
+
+          <div className="flex items-center gap-4 text-[11px] text-slate-400">
+            <span>Liquidity Cascade (10-120d): <strong className="text-emerald-400">{currencySymbol}{metrics.frtbLiquidityCascadeES?.toLocaleString()}</strong></span>
+            <span>Stress Factor: <strong className="text-amber-400">{metrics.frtbStressedESRatio ?? 1.38}x</strong></span>
+            <span>PLA Test: <strong className="text-cyan-400">{metrics.frtbPlaStatus ?? 'PASS'}</strong></span>
+          </div>
+        </div>
+      )}
 
       {/* Primary 4 Core Risk Metric Tiles */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">

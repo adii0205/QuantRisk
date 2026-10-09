@@ -99,6 +99,13 @@ export interface RiskMetrics {
   componentVaR: { symbol: string; percentContribution: number; marginalVaR: number }[];
   evtVaR99?: number;
   evtES99?: number;
+  // FRTB-aligned Internal Model Approach (IMA) Metrics (Phase 7.1)
+  frtbES975?: number; // Basel 97.5% Expected Shortfall (BCBS d457 base)
+  frtbLiquidityCascadeES?: number; // Cascaded across 10, 20, 40, 60, 120-day liquidity horizons
+  frtbStressedESRatio?: number; // ES_F,C / ES_R,C stress scaling multiplier
+  frtbPlaSpearmanCorr?: number; // P&L Attribution Spearman correlation (Hypothetical vs Risk-Theoretical)
+  frtbPlaKsStat?: number; // P&L Attribution Kolmogorov-Smirnov test statistic
+  frtbPlaStatus?: 'PASS' | 'AMBER' | 'FAIL';
 }
 
 export interface SimulationResult {

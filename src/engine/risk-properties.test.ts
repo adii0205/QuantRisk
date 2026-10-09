@@ -7,8 +7,8 @@ describe('Phase 0.2: Fast-Check Property-Based Invariant Tests', () => {
   it('Property: VaR is monotone in confidence level (VaR99 >= VaR95 >= VaR90)', () => {
     fc.assert(
       fc.property(
-        fc.double({ min: 0.1, max: 0.4 }), // volatility
-        fc.double({ min: -0.05, max: 0.15 }), // expected return
+        fc.double({ min: 0.1, max: 0.4, noNaN: true }), // volatility
+        fc.double({ min: -0.05, max: 0.15, noNaN: true }), // expected return
         (vol, ret) => {
           const portfolio: Portfolio = {
             id: 'test_port',
@@ -56,7 +56,7 @@ describe('Phase 0.2: Fast-Check Property-Based Invariant Tests', () => {
   it('Property: Expected Shortfall is strictly greater than or equal to VaR (ES >= VaR)', () => {
     fc.assert(
       fc.property(
-        fc.double({ min: 0.1, max: 0.35 }),
+        fc.double({ min: 0.1, max: 0.35, noNaN: true }),
         (vol) => {
           const portfolio: Portfolio = {
             id: 'test_port',

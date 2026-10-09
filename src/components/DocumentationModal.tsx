@@ -373,8 +373,10 @@ export const DocumentationModal: React.FC<DocumentationModalProps> = ({ isOpen, 
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-slate-800 bg-slate-950/70 flex items-center justify-between text-xs font-mono text-slate-500">
-          <span>QuantRisk Quantitative Engine v1.0</span>
+        <div className="px-6 py-3 border-t border-slate-800 bg-slate-950/70 flex flex-wrap items-center justify-between gap-3 text-xs font-mono text-slate-500">
+          <div className="text-[11px] text-slate-400">
+            <span className="text-amber-400 font-semibold">Regulatory Disclaimer:</span> FRTB-inspired research suite for academic & simulation analysis. Not certified for supervisory capital adequacy or investment use.
+          </div>
           <button
             onClick={onClose}
             className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-lg transition-colors cursor-pointer"

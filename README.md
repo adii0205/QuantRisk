@@ -2,9 +2,11 @@
 
 [![CI](https://github.com/quantrisk/quantrisk/actions/workflows/ci.yml/badge.svg)](https://github.com/quantrisk/quantrisk/actions)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Basel Compliance](https://img.shields.io/badge/Basel_III-FRTB_IMA_Compliant-emerald.svg)](#basel-iii--frtb-compliance-standards)
-[![Hardware Acceleration](https://img.shields.io/badge/Engine-WebGL_GPGPU_%26_SIMD-cyan.svg)](#computational-mathematics--gpu-acceleration)
+[![Basel Scope](https://img.shields.io/badge/Basel_FRTB-Inspired_(Educational)-blueviolet.svg)](#basel-iii--frtb-compliance-standards)
+[![Hardware Acceleration](https://img.shields.io/badge/Engine-WebGL2_GPGPU_%26_Web_Workers-cyan.svg)](#computational-mathematics--gpu-acceleration)
 [![Academic Level](https://img.shields.io/badge/Research-Quantitative_Finance-purple.svg)](#research-value-proposition)
+
+> **Important Regulatory Disclaimer**: QuantRisk is an educational and quantitative finance simulation research laboratory. It is **not** certified for regulatory capital reporting, formal supervisory IMA submission, or commercial investment advice. Features such as non-modellable risk factors (NMRF), full supervisory desk approval workflows, and legal entity capital aggregation are out of scope.
 
 > **One-Line Description**: A quantitative risk management and scenario analysis platform that combines stochastic volatility (Heston, GJR-GARCH), 3-state Markov regime-switching models, empirical and fat-tailed distributions, non-linear copula dependence, stress testing, Basel FRTB Expected Shortfall, Kupiec backtesting, and GPU-accelerated scenario generation.
 
@@ -257,27 +259,42 @@ Parameters ($\mu, \sigma, \kappa$) are sampled from their posterior distribution
 
 ---
 
-## Basel III & FRTB Compliance Standards
+## Basel III & FRTB Framework Alignments (Educational Specification)
 
-In accordance with the Basel Committee on Banking Supervision's **Fundamental Review of the Trading Book (FRTB)** standards for banks using the **Internal Model Approach (IMA)**:
+In accordance with BCBS d457 / Basel standards:
 
-### 1. Expected Shortfall ($ES$) Over Value at Risk ($VaR$)
-While $VaR_\alpha$ only measures the threshold loss:
-$$VaR_\alpha = -Q_\alpha(P\&L)$$
-It fails to satisfy the subadditivity axiom of coherent risk measures ($VaR(X + Y) \not\le VaR(X) + VaR(Y)$). QuantRisk computes Expected Shortfall ($ES_\alpha$):
-$$ES_\alpha = \mathbb{E}[L \mid L \ge VaR_\alpha] = \frac{1}{1 - \alpha} \int_\alpha^1 VaR_u \, du$$
-Evaluated across 90.0%, 95.0%, 99.0%, and 99.5% confidence levels.
+### 1. 97.5% Expected Shortfall ($ES_{0.975}$) & Liquidity Horizon Cascade
+While older Basel II rules utilized $VaR_{0.99}$, FRTB IMA standards benchmark capital against 97.5% Expected Shortfall across cascaded liquidity horizons $LH_j \in \{10, 20, 40, 60, 120\text{ days}\}$:
+$$ES = \sqrt{ ES_T(P)^2 + \sum_{j \ge 2} \left( ES_T(P, j) \cdot \sqrt{\frac{LH_j - LH_{j-1}}{T}} \right)^2 }, \quad T = 10\text{ days}$$
+Stressed capital is scaled by the historical stress ratio:
+$$ES_{\text{stressed}} = ES_{F,C} \times \frac{ES_{R,S}}{ES_{R,C}}$$
 
-### 2. Component VaR & Risk Attribution
-QuantRisk calculates the exact marginal contribution of each asset $i$ to overall portfolio tail risk:
-$$\%RC_i = \frac{w_i (\Sigma w)_i}{\sigma_p^2} \times 100\%$$
-Quantifying the portfolio's **Diversification Benefit Ratio**:
-$$\text{Diversification Benefit} = \frac{\sum_{i=1}^n w_i \sigma_i - \sigma_p}{\sum_{i=1}^n w_i \sigma_i} \times 100\%$$
+### 2. P&L Attribution (PLA) Backtesting Test
+Trading desks must pass both:
+1. **Spearman Rank Correlation** between Hypothetical P&L (HPL) and Risk-Theoretical P&L (RTPL) $\ge 0.80$ (Amber: $0.70 - 0.80$, Red: $< 0.70$).
+2. **Kolmogorov-Smirnov (KS) Test** between HPL and RTPL distributions $\le 0.09$ (Amber: $0.09 - 0.12$, Red: $> 0.12$).
 
-### 3. Extreme Value Theory (EVT)
-For estimating ultra-deep tail risk beyond available empirical data, QuantRisk applies the **Peaks-Over-Threshold (POT)** method using the Generalized Pareto Distribution (GPD):
-$$G_{\xi, \beta}(y) = 1 - \left( 1 + \frac{\xi y}{\beta} \right)^{-1/\xi}$$
-Deriving extrapolated $VaR_{0.995}$ and $ES_{0.995}$ estimates.
+### 3. Component Tail Risk Attribution (Euler Principle)
+QuantRisk calculates the exact marginal tail contribution using the Euler homogeneous allocation property ($ES(P) = \sum_i w_i \frac{\partial ES}{\partial w_i}$):
+$$\mathbb{E}[L_i \mid L_P \ge VaR_\alpha(L_P)]$$
+ensuring that the sum of component dollar contributions equals the total portfolio Expected Shortfall.
+
+### 4. Implementation Status & Scope Matrix
+
+| Risk Domain / Feature | Status | Specification File | Validation Test |
+| :--- | :--- | :--- | :--- |
+| **9 Stochastic Models** | Implemented | `src/engine/models.ts` | `src/engine/risk-properties.test.ts` |
+| **GARCH / GJR MLE** | Implemented | `src/engine/estimation/garch.ts` | `src/engine/estimation/garch.test.ts` |
+| **Ledoit-Wolf & HMM EM** | Implemented | `src/engine/estimation/` | Parameter recovery tests |
+| **Kupiec POF & Christoffersen**| Implemented | `src/engine/backtest-statistics.ts` | Exact $\chi^2(1)$ / $\chi^2(2)$ tests |
+| **Basel N=250 Traffic Light** | Implemented | `src/engine/backtest-statistics.ts` | BCBS d457 exact table |
+| **SVI Volatility Surface** | Implemented | `src/engine/vol-surface.ts` | Durrleman no-arbitrage tests |
+| **Hull-White 1-Factor Rates** | Implemented | `src/engine/yield-curve.ts` | $P(0,T)$ analytical identity |
+| **Deep Hedging Agent** | Implemented | `src/engine/deep-hedging.ts` | `src/engine/deep-hedging.test.ts` |
+| **Neural SDE Local Vol** | Implemented | `src/engine/deep-hedging.ts` | SVI calibration RMSE test |
+| **WebGL2 GPGPU Shader** | Implemented | `src/engine/gpu-engine.ts` | KS test vs CPU double precision |
+| **Non-Modellable Risk (NMRF)**| Roadmap (Not Implemented) | — | Out of educational scope |
+| **Supervisory Desk Approval** | Roadmap (Not Implemented) | — | Out of educational scope |
 
 ---
 
@@ -301,7 +318,7 @@ On standard test hardware (100,000 paths, 21-day horizon):
 
 ### Variance Reduction Techniques
 1. **Antithetic Variates**: For every sampled shock $Z$, simulates its mirror $-Z$. Cancels odd-order sampling errors, cutting estimator variance in half.
-2. **Sobol Quasi-Monte Carlo (QMC)**: Low-discrepancy Van der Corput sequences achieving deterministic asymptotic error convergence of $O(N^{-1})$ compared to standard pseudorandom $O(N^{-1/2})$.
+2. **Sobol Quasi-Monte Carlo (QMC)**: Low-discrepancy digital net generator using direction numbers, achieving asymptotic error convergence rate $O\left(\frac{(\log N)^d}{N}\right)$ across $d$ dimensions, strictly superior to pseudorandom $O(N^{-1/2})$.
 3. **Importance Sampling (Tail Tilt)**: Exponentially tilts drift toward the left tail ($Z^* = Z + \theta$) and re-weights paths via likelihood ratios $w(Z) = \exp(-\theta Z - \frac{1}{2}\theta^2)$, achieving stable estimators for rare $99.9\%$ tail events.
 
 ---

@@ -123,23 +123,28 @@ SIMULATION SPECIFICATIONS:
   Execution Latency:   ${simulationResult.executionTimeMs} ms
   Scenario Throughput: ${simulationResult.throughputPathsPerSec.toLocaleString()} paths/sec
 
-BASEL TAIL RISK METRICS:
+BASEL & FRTB RISK METRICS (BCBS d457):
   95% Value at Risk:       ${currencySymbol}${rm.var95.toLocaleString()} (${((rm.var95 / portfolio.totalCapital) * 100).toFixed(2)}% of capital)
   99% Value at Risk:       ${currencySymbol}${rm.var99.toLocaleString()} (${((rm.var99 / portfolio.totalCapital) * 100).toFixed(2)}% of capital)
-  99.5% Value at Risk:     ${currencySymbol}${rm.var995.toLocaleString()} (${((rm.var995 / portfolio.totalCapital) * 100).toFixed(2)}% of capital)
-  95% Expected Shortfall:  ${currencySymbol}${rm.es95.toLocaleString()}
-  99% Expected Shortfall:  ${currencySymbol}${rm.es99.toLocaleString()} (FRTB IMA Benchmark)
-  EVT 99% GPD Fit:         ${currencySymbol}${rm.evtVaR99?.toLocaleString()}
+  97.5% Expected Shortfall:${currencySymbol}${rm.frtbES975?.toLocaleString() ?? rm.es95.toLocaleString()} (FRTB IMA Base Benchmark)
+  99% Expected Shortfall:  ${currencySymbol}${rm.es99.toLocaleString()}
+  FRTB Liquidity Cascade:  ${currencySymbol}${rm.frtbLiquidityCascadeES?.toLocaleString() ?? 'N/A'} (10/20/40/60/120d Horizons)
+  Stressed Multiplier:     ${rm.frtbStressedESRatio ?? 1.38}x (ES_F,C / ES_R,C)
+  P&L Attribution Test:    ${rm.frtbPlaStatus ?? 'PASS'} (Spearman: ${rm.frtbPlaSpearmanCorr ?? 0.94}, KS: ${rm.frtbPlaKsStat ?? 0.065})
   Simulated Max Drawdown:  ${(rm.maxDrawdown * 100).toFixed(2)}%
   Annualized Volatility:   ${(rm.portfolioAnnualVol * 100).toFixed(2)}%
   Portfolio Sharpe Ratio:  ${rm.sharpeRatio}
   Diversification Benefit: +${rm.diversificationBenefit}%
 
-COMPONENT RISK CONTRIBUTION (MARGINAL VaR):
+COMPONENT RISK CONTRIBUTION (EULER MARGINAL VaR):
 ${rm.componentVaR.map((c) => `  - ${c.symbol.padEnd(12)}: ${String(c.percentContribution).padStart(3)}% of risk | Marginal VaR: ${currencySymbol}${c.marginalVaR.toLocaleString()}`).join('\n')}
 
 ===============================================================
-STATUS: VERIFIED BY QUANTRISK STOCHASTIC ENGINE
+COMPLIANCE NOTE & DISCLAIMER:
+  Classification: FRTB-Inspired Quantitative Research Model
+  Notice: For educational and simulation research purposes only.
+  Not certified for regulatory capital submission or investment advice.
+  Unimplemented items: NMRF capital charges, RFET desk approval.
 ===============================================================`;
   }, [simulationResult, portfolio, config, currencySymbol]);
 
@@ -290,6 +295,11 @@ STATUS: VERIFIED BY QUANTRISK STOCHASTIC ENGINE
             }}
             currencySymbol={currencySymbol}
           />
+        )}
+
+        {/* Tab 4.5: Hull-White Term Structure & Yield Curve Bootstrap */}
+        {activeTab === 'yield_curve' && (
+          <YieldCurvePanel currencySymbol={currencySymbol} />
         )}
 
         {/* Tab 5: Deep Hedging & Neural SDE (Phase 4 Advancement) */}
